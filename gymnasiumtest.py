@@ -3,10 +3,10 @@ import ale_py
 
 gym.register_envs(ale_py)
 
-env = gym.make('ALE/Assault-v5', render_mode='human')
+env = gym.make('ALE/Centipede-v5', render_mode='human')
 obs, info = env.reset()
 obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
-print (obs,reward,terminated,truncated,info)
+## print (obs,reward,terminated,truncated,info) # Show initial state
 
 
 
@@ -26,9 +26,9 @@ while curr_lives == info['lives']:
     if done:
         break
 
+# post-episode info
+print ("Final state:")
+print (obs,reward,terminated,truncated,info)
 print("Episode done in %d steps, total reward %.2f" % (total_steps, total_reward))
 env.close()
-env.env.close()
 
-
-env.close()
