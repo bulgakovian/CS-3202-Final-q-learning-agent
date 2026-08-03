@@ -14,8 +14,7 @@ import ale_py
 from collections import defaultdict
 import numpy as np
 import random, util, math
-import matplotlib.pyplot as plt
-import seaborn as sns
+import csv
 from tqdm import tqdm
 
 class CentipedeQAgent:
@@ -96,7 +95,7 @@ env = gym.make('ALE/Centipede-v5')
 
 # hyperparameters
 learning_rate = 0.01
-n_episodes = 100
+n_episodes = 25
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)  # reduce the exploration over time
 final_epsilon = 0.1
@@ -127,6 +126,12 @@ for episode in tqdm(range(n_episodes)):
         
 
         # update the agent
+
+        # reward firing
+        if action in [1,10,11,12,13,14,15,16,17]:
+            reward +=30
+
+
         agent.update(tuple(obs), action, reward, terminated, tuple(next_obs))
         tot_reward += reward
         tot_steps +=1
@@ -139,14 +144,24 @@ for episode in tqdm(range(n_episodes)):
     log.append((ep_num,tot_steps,tot_reward))
     ep_num +=1
 
+# Log episodes
+with open('output.csv','w',newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Episode','Total steps','Total reward'])
+    writer.writerows(log)
+
+
 # Training done Play one full game (all lives) with learning
 agent.stop_learning()
 total_reward = 0.0
 total_steps = 0
-env = gym.make('ALE/Centipede-v5', render_mode='human')
+env = gym.make('ALE/Centipede-v5', render_mode='rgb_array')
+env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'final', episode_trigger=lambda x: True)
 env = gym.wrappers.FlattenObservation(env)
 obs, info = env.reset()
 done = False
+
+
 
 obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
 while not done:
