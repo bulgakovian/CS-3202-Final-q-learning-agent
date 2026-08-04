@@ -11,6 +11,7 @@
 
 import gymnasium as gym
 import ale_py
+import functools
 from collections import defaultdict
 import numpy as np
 import random, util, math
@@ -47,7 +48,7 @@ class CentipedeQAgent:
         self.final_epsilon = final_epsilon
 
         self.training_error = []
-
+    @functools.lru_cache(maxsize = None)
     def get_action(self, env, obs) -> int:
         """
         Returns the best action with probability (1 - epsilon)
@@ -60,7 +61,8 @@ class CentipedeQAgent:
         # with probability (1 - epsilon) act greedily (exploit)
         else:
             return int(np.argmax(self.q_values[obs]))
-
+        
+    @functools.lru_cache(maxsize = None)
     def update(
         self,
         obs: tuple,
@@ -95,7 +97,7 @@ env = gym.make('ALE/Centipede-v5')
 
 # hyperparameters
 learning_rate = 0.01
-n_episodes = 25
+n_episodes = 100
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)  # reduce the exploration over time
 final_epsilon = 0.1
