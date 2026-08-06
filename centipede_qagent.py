@@ -17,6 +17,8 @@ import numpy as np
 import random, util, math
 import csv
 from tqdm import tqdm
+    
+        
 
 class CentipedeQAgent:
     def __init__(
@@ -61,6 +63,7 @@ class CentipedeQAgent:
         # with probability (1 - epsilon) act greedily (exploit)
         else:
             return int(np.argmax(self.q_values[obs]))
+
         
     @functools.lru_cache(maxsize = None)
     def update(
@@ -91,13 +94,12 @@ class CentipedeQAgent:
 
 
 # Create environment
-gym.register_envs(ale_py)
 env = gym.make('ALE/Centipede-v5')
 
 
 # hyperparameters
 learning_rate = 0.01
-n_episodes = 100
+n_episodes = 1000
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)  # reduce the exploration over time
 final_epsilon = 0.1
@@ -110,17 +112,19 @@ agent = CentipedeQAgent(
     final_epsilon=final_epsilon,
 )
 
-env = gym.make('ALE/Centipede-v5')
+env = gym.make('ALE/Centipede-v5',frameskip=1)
+env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
+env = gym.wrappers.FlattenObservation(env)
 log = []
 ep_num = 0
 for episode in tqdm(range(n_episodes)):
     tot_reward = 0
     tot_steps = 0
-    env = gym.wrappers.FlattenObservation(env)
+    # pre-process
+
     obs, info = env.reset()
     curr_lives = info['lives']
     done = False
-
     # play one episode
     while not done:
         action = agent.get_action(env, tuple(obs))
@@ -131,7 +135,9 @@ for episode in tqdm(range(n_episodes)):
 
         # reward firing
         if action in [1,10,11,12,13,14,15,16,17]:
-            reward +=30
+            reward +=100
+        else:
+            reward -=10
 
 
         agent.update(tuple(obs), action, reward, terminated, tuple(next_obs))
@@ -157,8 +163,9 @@ with open('output.csv','w',newline='') as file:
 agent.stop_learning()
 total_reward = 0.0
 total_steps = 0
-env = gym.make('ALE/Centipede-v5', render_mode='rgb_array')
-env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'final', episode_trigger=lambda x: True)
+env = gym.make('ALE/Centipede-v5', frameskip=1, render_mode='rgb_array')
+env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
+env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'qagent', episode_trigger=lambda x: True)
 env = gym.wrappers.FlattenObservation(env)
 obs, info = env.reset()
 done = False
