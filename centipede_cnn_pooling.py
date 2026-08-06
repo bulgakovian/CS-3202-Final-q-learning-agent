@@ -1,18 +1,21 @@
-#@title Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# CSPB 3202 Final Project - Actor-Critic CNN Reinforcement learning
+# Andrew Metzroth
+# 
+# A learning agent that uses a Convolution Neural network (CNN)
+# To learn the Atari game Centipede.
+# 
+# Much of the code base for this project comes from the extremely helpful tutorial:
+# https://www.tensorflow.org/tutorials/reinforcement_learning/actor_critic
+# 
+# My major innovations include:
+# - Adapting the code base to run on the Arcade Learning Environment in Gymnasium
+# - Adding a CNN to the Actor-Critic model
+# - Creating replay logs and adding statistics
+# - Adapting parameters and reward requirements to fit the Centipede problem
+
 
 import collections
 import gymnasium as gym
-import Box2D
 import ale_py
 import numpy as np
 import statistics
@@ -105,12 +108,18 @@ def run_episode(
 
     # Sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_t, 1)[0, 0]
+
+
     action_probs_t = tf.nn.softmax(action_logits_t)
 
     # Store critic values
     values = values.write(t, tf.squeeze(value))
 
     # Store log probability of the action chosen
+    # DEBUG: out of bounds issues:
+    if action >= 18:
+      print("Action at 18+")
+
     action_probs = action_probs.write(t, action_probs_t[0, action])
 
     # Apply action to the environment to get next state and reward
@@ -249,9 +258,9 @@ with tf.device("GPU:0"):
       t.set_postfix(
           episode_reward=episode_reward, running_reward=running_reward)
 
-      # Show the average episode reward every 10 episodes
-      if i % 10 == 0:
-        pass # print(f'Episode {i}: average reward: {avg_reward}')
+      # Show the average episode reward every 100 episodes
+      if i % 100 == 0:
+        print(f'Episode {i}: average reward: {avg_reward}')
 
       if running_reward > reward_threshold and i >= min_episodes_criterion:
           break
