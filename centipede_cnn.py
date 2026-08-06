@@ -25,7 +25,8 @@ from typing import Any, List, Sequence, Tuple
 
 
 # Create the environment
-env = gym.make("ALE/Centipede-v5")
+env = gym.make("ALE/Centipede-v5", frameskip=1)
+env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True, grayscale_newaxis = True)
 
 # Set seed for experiment reproducibility
 seed = 42
@@ -44,19 +45,37 @@ class ActorCritic(tf.keras.Model):
       num_hidden_units: int):
     """Initialize."""
     super().__init__()
-    self.input_layer = layers.Conv2D(32684,(9,9), activation='relu', input_shape=(208,158,18))
-    self.pool_1 = layers.MaxPooling2D((2,2))
-    self.hidden_1 = layers.Conv2D(64,(3,3), activation='relu')
-    self.pool_2 = layers.MaxPooling2D((2,2))
-    self.hidden_2 = layers.Conv2D(64,(3,3),activation = 'relu')
-    self.flat = layers.Flatten()
-    self.common = layers.Dense(num_hidden_units, activation="relu")
-    self.actor = layers.Dense(num_actions)
-    self.critic = layers.Dense(1)
+    # Convolutional feature extractor
+    self.conv1 = layers.Conv2D(128,(3,3), activation='relu', input_shape=(1,84,84,1))
+    self.conv2 = layers.Conv2D(64, 4, strides=2, activation="relu")
+    self.conv3 = layers.Conv2D(64, 3, strides=1, activation="relu")
+    
+    # Flatten features
+    self.flatten = layers.Flatten()
+    self.dense = layers.Dense(512, activation="relu")
+    
+    self.actor_output = layers.Dense(num_actions, activation="softmax", name="actor")
+    
+    # Critic head (value output of size 1)
+    self.critic_output = layers.Dense(1, name="critic")
+
+
+    #self.input_layer = 
+    #self.hidden_1 = layers.Conv2D(64,(3,3), activation='relu')
+    #self.hidden_2 = layers.Conv2D(64,(3,3),activation = 'relu')
+    #self.flat = layers.Flatten()
+    #self.common = layers.Dense(num_hidden_units, activation="relu")
+    #self.actor = layers.Dense(num_actions)
+    #self.critic = layers.Dense(1)
 
   def call(self, inputs: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
-    x = self.input_layer(inputs)
-    return self.actor(x), self.critic(x)
+    inputs = tf.expand_dims(inputs,0)
+    x = self.conv1(inputs)
+    x = self.conv2(x)
+    x = self.conv3(x)
+    x = self.flatten(x)
+    x = self.dense(x)
+    return self.actor_output(x), self.critic_output(x)
 # Wrap Gym's `env.step` call as an operation in a TensorFlow function.
 # This would allow it to be included in a callable TensorFlow graph.
 
@@ -85,7 +104,7 @@ def run_episode(
 
   for t in tf.range(max_steps):
     # Convert state into a batched tensor (batch size = 1)
-    state = tf.expand_dims(state, 0)
+    # state = tf.expand_dims(state, 0)
 
     # Run the model and to get action probabilities and critic value
     action_logits_t, value = model(state)
@@ -197,6 +216,7 @@ def train_step(
   episode_reward = int(tf.math.reduce_sum(rewards))
 
   return episode_reward
+
 num_actions = env.action_space.n  # 2
 num_hidden_units = 128
 
@@ -205,12 +225,12 @@ model.summary()
 
 
 min_episodes_criterion = 100
-max_episodes = 10000
-max_steps_per_episode = 500
+max_episodes = 300
+max_steps_per_episode = 1000
 
 # `CartPole-v1` is considered solved if average reward is >= 475 over 500
 # consecutive trials
-reward_threshold = 200
+reward_threshold = 1000
 running_reward = 0
 
 # The discount factor for future rewards
@@ -219,25 +239,26 @@ gamma = 0.99
 # Keep the last episodes reward
 episodes_reward: collections.deque = collections.deque(maxlen=min_episodes_criterion)
 t = tqdm.trange(max_episodes)
-for i in t:
-    initial_state, info = env.reset()
-    initial_state = tf.constant(initial_state, dtype=tf.float32)
-    episode_reward = int(train_step(
-        initial_state, model, optimizer, gamma, max_steps_per_episode))
+with tf.device("GPU:0"):
+  for i in t:
+      initial_state, info = env.reset()
+      initial_state = tf.constant(initial_state, dtype=tf.float32)
+      episode_reward = int(train_step(
+          initial_state, model, optimizer, gamma, max_steps_per_episode))
 
-    episodes_reward.append(episode_reward)
-    running_reward = statistics.mean(episodes_reward)
+      episodes_reward.append(episode_reward)
+      running_reward = statistics.mean(episodes_reward)
 
 
-    t.set_postfix(
-        episode_reward=episode_reward, running_reward=running_reward)
+      t.set_postfix(
+          episode_reward=episode_reward, running_reward=running_reward)
 
-    # Show the average episode reward every 10 episodes
-    if i % 10 == 0:
-      pass # print(f'Episode {i}: average reward: {avg_reward}')
+      # Show the average episode reward every 10 episodes
+      if i % 10 == 0:
+        pass # print(f'Episode {i}: average reward: {avg_reward}')
 
-    if running_reward > reward_threshold and i >= min_episodes_criterion:
-        break
+      if running_reward > reward_threshold and i >= min_episodes_criterion:
+          break
 
 print(f'\nSolved at episode {i}: average reward: {running_reward:.2f}!')
 model.summary()
@@ -246,8 +267,10 @@ model.summary()
 from IPython import display as ipythondisplay
 from PIL import Image
 
-#render_env = gym.make("CartPole-v1", render_mode='rgb_array')
-render_env = gym.make("LunarLander-v3", continuous=False, gravity=-10.0, enable_wind=False, wind_power=15.0, turbulence_power=1.5, render_mode='rgb_array')
+
+env = gym.make('ALE/Centipede-v5',frameskip=1, render_mode = 'rgb_array')
+env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
+env = gym.wrappers.FlattenObservation(env)
 def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
   state, info = env.reset()
   state = tf.constant(state, dtype=tf.float32)

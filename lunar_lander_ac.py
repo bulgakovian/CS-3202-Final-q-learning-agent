@@ -85,6 +85,7 @@ def run_episode(
     # Run the model and to get action probabilities and critic value
     action_logits_t, value = model(state)
 
+
     # Sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_t, 1)[0, 0]
     action_probs_t = tf.nn.softmax(action_logits_t)
