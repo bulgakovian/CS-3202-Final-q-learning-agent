@@ -45,33 +45,27 @@ class ActorCritic(tf.keras.Model):
       num_hidden_units: int):
     """Initialize."""
     super().__init__()
-    # Convolutional feature extractor
-    self.conv1 = layers.Conv2D(128,(3,3), activation='relu', input_shape=(1,84,84,1))
-    self.conv2 = layers.Conv2D(64, 4, strides=2, activation="relu")
-    self.conv3 = layers.Conv2D(64, 3, strides=1, activation="relu")
+    # Convolutional layers with pooling layers
+    self.conv1 = layers.Conv2D(84,(3,3), activation='relu', input_shape=(1,84,84,1))
+    self.pool1 = layers.MaxPooling2D((2, 2))
+    self.conv2 = layers.Conv2D(64, (3,3), strides=2, activation="relu")
+    self.pool2 = layers.MaxPooling2D((2, 2))
+    self.conv3 = layers.Conv2D(32, (3,3), strides=1, activation="relu")
     
     # Flatten features
     self.flatten = layers.Flatten()
     self.dense = layers.Dense(512, activation="relu")
-    
+
+    # Actor and critic head
     self.actor_output = layers.Dense(num_actions, activation="softmax", name="actor")
-    
-    # Critic head (value output of size 1)
     self.critic_output = layers.Dense(1, name="critic")
-
-
-    #self.input_layer = 
-    #self.hidden_1 = layers.Conv2D(64,(3,3), activation='relu')
-    #self.hidden_2 = layers.Conv2D(64,(3,3),activation = 'relu')
-    #self.flat = layers.Flatten()
-    #self.common = layers.Dense(num_hidden_units, activation="relu")
-    #self.actor = layers.Dense(num_actions)
-    #self.critic = layers.Dense(1)
 
   def call(self, inputs: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
     inputs = tf.expand_dims(inputs,0)
     x = self.conv1(inputs)
+    x = self.pool1(x)
     x = self.conv2(x)
+    x = self.pool2(x)
     x = self.conv3(x)
     x = self.flatten(x)
     x = self.dense(x)
@@ -227,12 +221,12 @@ model.summary()
 
 
 min_episodes_criterion = 100
-max_episodes = 3
-max_steps_per_episode = 1000
+max_episodes = 1000
+max_steps_per_episode = 5000
 
 # `CartPole-v1` is considered solved if average reward is >= 475 over 500
 # consecutive trials
-reward_threshold = 1000
+reward_threshold = 2000
 running_reward = 0
 
 # The discount factor for future rewards
@@ -266,10 +260,9 @@ print(f'\nSolved at episode {i}: average reward: {running_reward:.2f}!')
 model.summary()
 # Render an episode and save as a GIF file
 
-
 env = gym.make('ALE/Centipede-v5', frameskip=1, render_mode='rgb_array')
 env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
-env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'cnnAgent', episode_trigger=lambda x: True)
+env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'cnnAgent_pool', episode_trigger=lambda x: True)
 
 def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
   state, _ = env.reset()
