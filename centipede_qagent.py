@@ -99,7 +99,7 @@ env = gym.make('ALE/Centipede-v5')
 
 # hyperparameters
 learning_rate = 0.01
-n_episodes = 1000
+n_episodes = 600
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)  # reduce the exploration over time
 final_epsilon = 0.1
@@ -123,7 +123,6 @@ for episode in tqdm(range(n_episodes)):
     # pre-process
 
     obs, info = env.reset()
-    curr_lives = info['lives']
     done = False
     # play one episode
     while not done:
@@ -133,18 +132,16 @@ for episode in tqdm(range(n_episodes)):
 
         # update the agent
 
-        # reward firing
+        # reward firing and staying on the move
         if action in [1,10,11,12,13,14,15,16,17]:
             reward +=100
         else:
-            reward -=10
-
-
+            reward -=100
         agent.update(tuple(obs), action, reward, terminated, tuple(next_obs))
         tot_reward += reward
         tot_steps +=1
         # update if the environment is done and the current obs
-        done = terminated or truncated or (curr_lives != info['lives'])
+        done = terminated or truncated
         obs = next_obs
 
     # update decay and log results
