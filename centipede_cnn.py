@@ -268,9 +268,9 @@ from IPython import display as ipythondisplay
 from PIL import Image
 
 
-env = gym.make('ALE/Centipede-v5',frameskip=1, render_mode = 'rgb_array')
-env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
-env = gym.wrappers.FlattenObservation(env)
+render_env = gym.make('ALE/Centipede-v5',frameskip=1, render_mode = 'rgb_array')
+Render_env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
+Render_env = gym.wrappers.FlattenObservation(env)
 def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
   state, info = env.reset()
   state = tf.constant(state, dtype=tf.float32)
