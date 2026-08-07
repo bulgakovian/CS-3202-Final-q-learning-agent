@@ -14,6 +14,10 @@
 # - Adapting parameters and reward requirements to fit the Centipede problem
 
 
+#### NOTE - This is the same code as centipede_cnn.pooling.py
+####        but with an added penalty for repeating the same action
+
+
 import collections
 import gymnasium as gym
 import ale_py
@@ -100,6 +104,13 @@ def run_episode(
   state = initial_state
   done = False
 
+  ### Additional penalty variable. 
+  ### Going for two previous actions to prevent a 3-move cycle.
+  prev_action = tf.constant(-1,dtype=tf.int64)
+  #prev_action_2 = tf.constant(-1,dtype=tf.int64)
+  #prev_action_3 = tf.constant(-1,dtype=tf.int64)
+  penalty_value = 25
+
   for t in tf.range(max_steps):
     # Convert state into a batched tensor (batch size = 1)
     # state = tf.expand_dims(state, 0)
@@ -119,8 +130,17 @@ def run_episode(
     action_probs = action_probs.write(t, action_probs_t[0, action])
 
     # Apply action to the environment to get next state and reward
+    # Store previous action
     state, reward, done = env_step(action)
     state.set_shape(initial_state_shape)
+
+    # penalize the same action repeated.
+    if tf.equal(action,prev_action):
+      reward -= penalty_value
+
+    #prev_action_3 = prev_action_2
+    #prev_action_2 = prev_action
+    prev_action = action
 
     # Store reward
     rewards = rewards.write(t, reward)
@@ -195,6 +215,8 @@ def train_step(
     max_steps_per_episode: int) -> tf.Tensor:
   """Runs a model training step."""
 
+  
+
   with tf.GradientTape() as tape:
 
     # Run the model for one episode to collect training data
@@ -255,7 +277,7 @@ model.summary()
 
 # Trial variables
 min_episodes_criterion = 100
-max_episodes = 10000
+max_episodes = 300
 max_steps_per_episode = 7500
 
 
@@ -264,7 +286,7 @@ reward_threshold = 40000
 running_reward = 0
 
 # The discount factor for future rewards
-gamma = 0.1
+gamma = 0.99
 
 # Keep the last episode's reward
 episodes_reward: collections.deque = collections.deque(maxlen=min_episodes_criterion)
@@ -298,6 +320,6 @@ model.summary()
 # Render an episode and save as an MP4
 env = gym.make('ALE/Centipede-v5', frameskip=1, render_mode='rgb_array')
 env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
-env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = '10gcnnAgent_pool'+str(max_episodes), episode_trigger=lambda x: True)
+env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'cnnAgent_pool_3xPenalty'+str(max_episodes), episode_trigger=lambda x: True)
 
 render_episode(env, model, max_steps_per_episode)
