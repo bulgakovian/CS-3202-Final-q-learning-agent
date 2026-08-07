@@ -27,20 +27,15 @@ from tensorflow.keras import layers
 from typing import Any, List, Sequence, Tuple
 
 
-# Create the environment
-env = gym.make("ALE/Centipede-v5", frameskip=1)
-env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True, grayscale_newaxis = True)
-
 # Set seed for experiment reproducibility
 #seed = 42
 #tf.random.set_seed(seed)
 #np.random.seed(seed)
 
-# Small epsilon value for stabilizing division operations
-eps = np.finfo(np.float32).eps.item()
+############### Classes and Functions ###############
 
 class ActorCritic(tf.keras.Model):
-  """Combined actor-critic network."""
+  """Combined actor-critic network. Modified to use a Convolution neural Network"""
 
   def __init__(
       self,
@@ -48,6 +43,7 @@ class ActorCritic(tf.keras.Model):
       num_hidden_units: int):
     """Initialize."""
     super().__init__()
+
     # Convolutional layers with pooling layers
     self.conv1 = layers.Conv2D(84,(3,3), activation='relu', input_shape=(1,84,84,1))
     self.pool1 = layers.MaxPooling2D((2, 2))
@@ -64,6 +60,11 @@ class ActorCritic(tf.keras.Model):
     self.critic_output = layers.Dense(1, name="critic")
 
   def call(self, inputs: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+    """
+    Step through the neural network.
+    The final layer returns a series of 18 logits for the actor
+    and a single reward modifier for the critic.
+    """
     inputs = tf.expand_dims(inputs,0)
     x = self.conv1(inputs)
     x = self.pool1(x)
@@ -107,9 +108,8 @@ def run_episode(
     action_logits_t, value = model(state)
 
     # Sample next action from the action probability distribution
+    # Softmax here gives us a probability distribution.
     action = tf.random.categorical(action_logits_t, 1)[0, 0]
-
-
     action_probs_t = tf.nn.softmax(action_logits_t)
 
     # Store critic values
@@ -162,6 +162,9 @@ def get_expected_return(
 
   return returns
 
+
+
+# We are using L1 loss here because it is not as sensitive to outliers.
 huber_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
 
 @tf.function
@@ -218,26 +221,52 @@ def train_step(
 
   return episode_reward
 
+def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
+  state, _ = env.reset()
+  state = tf.constant(state, dtype=tf.float32)
+  for i in range(1, max_steps + 1):
+    state = tf.expand_dims(state, axis = -1)
+    action_probs, _ = model(state)
+    action = np.argmax(np.squeeze(action_probs))
+
+    state, reward, done, truncated, info = env.step(action)
+    state = tf.constant(state, dtype=tf.float32)
+    env.render()
+    if done:
+      break
+  env.close()
+  return
+
+
+############### Running Code ###############
+
+# Create the environment
+env = gym.make("ALE/Centipede-v5", frameskip=1)
+env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True, grayscale_newaxis = True)
+
+# Small epsilon value for stabilizing division operations
+eps = np.finfo(np.float32).eps.item()
+
 num_actions = env.action_space.n 
 num_hidden_units = 128
 
 model = ActorCritic(int(num_actions), num_hidden_units)
 model.summary()
 
-
+# Trial variables
 min_episodes_criterion = 100
-max_episodes = 300
-max_steps_per_episode = 5000
+max_episodes = 5000
+max_steps_per_episode = 7500
 
-# `CartPole-v1` is considered solved if average reward is >= 475 over 500
-# consecutive trials
+
+# Training will stop if the agent converges to this average reward after the minimum number of episodes.
 reward_threshold = 40000
 running_reward = 0
 
 # The discount factor for future rewards
 gamma = 0.99
 
-# Keep the last episodes reward
+# Keep the last episode's reward
 episodes_reward: collections.deque = collections.deque(maxlen=min_episodes_criterion)
 t = tqdm.trange(max_episodes)
 with tf.device("GPU:0"):
@@ -264,28 +293,11 @@ with tf.device("GPU:0"):
 
 print(f'\nSolved at episode {i}: average reward: {running_reward:.2f}!')
 model.summary()
-# Render an episode and save as a GIF file
 
+
+# Render an episode and save as an MP4
 env = gym.make('ALE/Centipede-v5', frameskip=1, render_mode='rgb_array')
 env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
 env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'cnnAgent_pool'+str(max_episodes), episode_trigger=lambda x: True)
 
-def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
-  state, _ = env.reset()
-  state = tf.constant(state, dtype=tf.float32)
-  for i in range(1, max_steps + 1):
-    state = tf.expand_dims(state, axis = -1)
-    action_probs, _ = model(state)
-    action = np.argmax(np.squeeze(action_probs))
-
-    state, reward, done, truncated, info = env.step(action)
-    state = tf.constant(state, dtype=tf.float32)
-    env.render()
-    if done:
-      break
-  env.close()
-  return
-
-
-# Save GIF image
 render_episode(env, model, max_steps_per_episode)
