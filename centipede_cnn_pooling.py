@@ -7,7 +7,7 @@
 # Much of the code base for this project comes from the extremely helpful tutorial:
 # https://www.tensorflow.org/tutorials/reinforcement_learning/actor_critic
 # 
-# My major innovations include:
+# My major alterations include:
 # - Adapting the code base to run on the Arcade Learning Environment in Gymnasium
 # - Adding a CNN to the Actor-Critic model
 # - Creating replay logs and adding statistics
@@ -32,9 +32,9 @@ env = gym.make("ALE/Centipede-v5", frameskip=1)
 env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True, grayscale_newaxis = True)
 
 # Set seed for experiment reproducibility
-seed = 42
-tf.random.set_seed(seed)
-np.random.seed(seed)
+#seed = 42
+#tf.random.set_seed(seed)
+#np.random.seed(seed)
 
 # Small epsilon value for stabilizing division operations
 eps = np.finfo(np.float32).eps.item()
@@ -60,7 +60,7 @@ class ActorCritic(tf.keras.Model):
     self.dense = layers.Dense(512, activation="relu")
 
     # Actor and critic head
-    self.actor_output = layers.Dense(num_actions, activation="softmax", name="actor")
+    self.actor_output = layers.Dense(num_actions, name="actor")
     self.critic_output = layers.Dense(1, name="critic")
 
   def call(self, inputs: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
@@ -116,10 +116,6 @@ def run_episode(
     values = values.write(t, tf.squeeze(value))
 
     # Store log probability of the action chosen
-    # DEBUG: out of bounds issues:
-    if action >= 18:
-      print("Action at 18+")
-
     action_probs = action_probs.write(t, action_probs_t[0, action])
 
     # Apply action to the environment to get next state and reward
@@ -222,7 +218,7 @@ def train_step(
 
   return episode_reward
 
-num_actions = env.action_space.n  # 2
+num_actions = env.action_space.n 
 num_hidden_units = 128
 
 model = ActorCritic(int(num_actions), num_hidden_units)
@@ -230,12 +226,12 @@ model.summary()
 
 
 min_episodes_criterion = 100
-max_episodes = 1000
+max_episodes = 300
 max_steps_per_episode = 5000
 
 # `CartPole-v1` is considered solved if average reward is >= 475 over 500
 # consecutive trials
-reward_threshold = 2000
+reward_threshold = 40000
 running_reward = 0
 
 # The discount factor for future rewards
@@ -260,7 +256,8 @@ with tf.device("GPU:0"):
 
       # Show the average episode reward every 100 episodes
       if i % 100 == 0:
-        print(f'Episode {i}: average reward: {avg_reward}')
+        print()
+        print(f'Episode {i}: average reward: {running_reward}')
 
       if running_reward > reward_threshold and i >= min_episodes_criterion:
           break
@@ -271,7 +268,7 @@ model.summary()
 
 env = gym.make('ALE/Centipede-v5', frameskip=1, render_mode='rgb_array')
 env = gym.wrappers.AtariPreprocessing(env,frame_skip=4,terminal_on_life_loss = True)
-env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'cnnAgent_pool', episode_trigger=lambda x: True)
+env = gym.wrappers.RecordVideo(env, video_folder = 'centipede_agents', name_prefix = 'cnnAgent_pool'+str(max_episodes), episode_trigger=lambda x: True)
 
 def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int):
   state, _ = env.reset()

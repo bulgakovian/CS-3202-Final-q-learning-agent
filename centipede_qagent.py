@@ -156,7 +156,7 @@ with open('output.csv','w',newline='') as file:
     writer.writerows(log)
 
 
-# Training done Play one full game (all lives) with learning
+# Training done Play one full game with learning
 agent.stop_learning()
 total_reward = 0.0
 total_steps = 0
