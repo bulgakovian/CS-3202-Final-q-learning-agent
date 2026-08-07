@@ -6,12 +6,18 @@
 # 
 # Much of the code base for this project comes from the extremely helpful tutorial:
 # https://www.tensorflow.org/tutorials/reinforcement_learning/actor_critic
+#
+# Additionally, huge thanks to my classmate Thomas Dunn 
+# for both moral support throughout the project and troubleshooting 
+# assistance as I tried to get the appropriate packages loaded onto my computer!
 # 
 # My major alterations include:
 # - Adapting the code base to run on the Arcade Learning Environment in Gymnasium
 # - Adding a CNN to the Actor-Critic model
 # - Creating replay logs and adding statistics
 # - Adapting parameters and reward requirements to fit the Centipede problem
+#
+# This is the primary codebase for the project.
 
 
 import collections
