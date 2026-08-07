@@ -111,8 +111,8 @@ def run_episode(
   ### Additional penalty variable. 
   ### Going for two previous actions to prevent a 3-move cycle.
   prev_action = tf.constant(-1,dtype=tf.int64)
-  #prev_action_2 = tf.constant(-1,dtype=tf.int64)
-  #prev_action_3 = tf.constant(-1,dtype=tf.int64)
+  prev_action_2 = tf.constant(-1,dtype=tf.int64)
+  prev_action_3 = tf.constant(-1,dtype=tf.int64)
   penalty_value = 25
 
   for t in tf.range(max_steps):
@@ -139,11 +139,11 @@ def run_episode(
     state.set_shape(initial_state_shape)
 
     # penalize the same action repeated.
-    if tf.equal(action,prev_action):
+    if tf.equal(action,prev_action) or tf.equal(action, prev_action_2) or tf.equal(action, prev_action_3):
       reward -= penalty_value
 
-    #prev_action_3 = prev_action_2
-    #prev_action_2 = prev_action
+    prev_action_3 = prev_action_2
+    prev_action_2 = prev_action
     prev_action = action
 
     # Store reward
