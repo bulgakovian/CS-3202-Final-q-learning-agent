@@ -18,4 +18,6 @@ In the repository you should find:
 
 - centipede_qagent.py and centipede_random_agent.py explore limited agents that do not use reinforcement learning techiniques.
 
+- Final_report.ipynb and Final_report.html provide a narrative about my approach to the project and attempt to solve the problem.
+
 - In the folder centipede_agents, Various videos of RL aznd Q agent performance, labeled by type of agent and length of training.
